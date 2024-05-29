@@ -5,6 +5,9 @@ import locale
 from bs4 import BeautifulSoup
 from datetime import datetime
 from Levenshtein import ratio
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from time import sleep
 
 locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
 
@@ -12,10 +15,11 @@ os.makedirs("infoOLX", exist_ok=True)
 
 url = "https://www.olx.kz/"
 link = f"/hobbi-otdyh-i-sport/sport-otdyh/astana/?page=1&search%5Border%5D=created_at%3Adesc"
-data = [['Наименование', 'Кол-во просмотров', 'дата публикации', 'ссылка']]
-
+data = [['№', 'Наименование', 'Кол-во просмотров', 'дата публикации', 'ссылка']]
+count = 1
 curr_link = None
-for page in range(1, 2):
+
+for page in range(1, 25):
     curr_link = f'/hobbi-otdyh-i-sport/sport-otdyh/astana/?page={page}&search%5Border%5D=created_at%3Adesc'
 
     response = requests.get(f'{url}/{curr_link}')
@@ -33,10 +37,21 @@ for page in range(1, 2):
         storage = requests.get(f'{url}/{post_link}').text
         necessary_bs = BeautifulSoup(storage, 'lxml')
 
-        # views_block = necessary_bs.find('div', class_='css-ayk4fp')
-        # print(views_block)
-        # views = views_block.find('span', class_='css-42xwsi')
-        # print(views)
+        browser = webdriver.Chrome()
+        browser.get(f'{url}/{post_link}')
+        element = browser.find_element(By.CLASS_NAME, 'css-cgp8kk')
+        browser.execute_script("arguments[0].scrollIntoView(true);", element)
+        sleep(8)
+        source_data = browser.page_source
+        browse = BeautifulSoup(source_data, "lxml")
+        views_block = None
+        views = None
+        try:
+            views_block = browse.find('span', class_='css-42xwsi').text
+            views = views_block.replace('Просмотров: ', '')
+        except:
+            print('Просмотров нет или не обнаружены')
+            views = '-'
 
         publication_date_block = necessary_bs.find('div', class_='css-1yzzyg0')
         publication_date = publication_date_block.find('span', class_='css-19yf5ek').text
@@ -64,11 +79,14 @@ for page in range(1, 2):
         else:
             print("Дата публикации не найдена")
 
-        print(name_block, publication_date, output_post_link)
-        data.append([name_block, publication_date, output_post_link])
+        print(f"{count}|{name_block}|{views}|{publication_date}|{output_post_link}")
+        data.append([count, name_block, views, publication_date, output_post_link])
+
+        count += 1
 
 with xlsxwriter.Workbook('infoOLX/Posts.xlsx') as workbook:
     worksheet = workbook.add_worksheet()
 
     for row_num, info in enumerate(data):
         worksheet.write_row(row_num, 0, info)
+        worksheet.autofit()
