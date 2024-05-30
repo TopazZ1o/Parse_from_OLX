@@ -30,18 +30,22 @@ for page in range(1, 25):
     post_class = block.find_all('div', class_='css-u2ayx9')
 
     for post in post_class:
+        # post links & names
         post_link = post.find_next('a').get('href')
         name_block = post.find('h6', class_='css-16v5mdi er34gjf0').text
         output_post_link = url + post_link
 
+        # open post
         storage = requests.get(f'{url}/{post_link}').text
         necessary_bs = BeautifulSoup(storage, 'lxml')
 
+        # search post views
         browser = webdriver.Chrome()
         browser.get(f'{url}/{post_link}')
         element = browser.find_element(By.CLASS_NAME, 'css-cgp8kk')
         browser.execute_script("arguments[0].scrollIntoView(true);", element)
         sleep(8)
+
         source_data = browser.page_source
         browse = BeautifulSoup(source_data, "lxml")
         views_block = None
@@ -53,11 +57,13 @@ for page in range(1, 25):
             print('Просмотров нет или не обнаружены')
             views = '-'
 
+        # search post publication date
         publication_date_block = necessary_bs.find('div', class_='css-1yzzyg0')
         publication_date = publication_date_block.find('span', class_='css-19yf5ek').text
 
         curr_date = datetime.now()
 
+        # transform publ date
         similarity_score = ratio(publication_date, 'Сегодня')
         if similarity_score >= 0.6:
             publication_date = curr_date.strftime('%d/%m/%Y')
@@ -84,9 +90,10 @@ for page in range(1, 25):
 
         count += 1
 
-with xlsxwriter.Workbook('infoOLX/Posts.xlsx') as workbook:
-    worksheet = workbook.add_worksheet()
+        with xlsxwriter.Workbook('infoOLX/Posts.xlsx') as workbook:
+            worksheet = workbook.add_worksheet()
 
-    for row_num, info in enumerate(data):
-        worksheet.write_row(row_num, 0, info)
-        worksheet.autofit()
+            for row_num, info in enumerate(data):
+                worksheet.write_row(row_num, 0, info)
+                worksheet.autofit()
+
