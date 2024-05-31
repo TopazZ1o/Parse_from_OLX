@@ -7,6 +7,7 @@ from datetime import datetime
 from Levenshtein import ratio
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import WebDriverException
 from time import sleep
 
 locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
@@ -18,6 +19,42 @@ link = f"/hobbi-otdyh-i-sport/sport-otdyh/astana/?page=1&search%5Border%5D=creat
 data = [['№', 'Наименование', 'Кол-во просмотров', 'дата публикации', 'ссылка']]
 count = 1
 curr_link = None
+
+
+def init_browser():
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    browser = webdriver.Chrome(options=options)
+    # browser = webdriver.Chrome()
+    return browser
+
+
+def views_count(browser):
+    # search post views
+    browser.get(f'{url}/{post_link}')
+    element = browser.find_element(By.CLASS_NAME, 'css-cgp8kk')
+    browser.execute_script("arguments[0].scrollIntoView(true);", element)
+    sleep(3)
+
+    source_data = browser.page_source
+    browse = BeautifulSoup(source_data, "lxml")
+    try:
+        views_block = browse.find('span', class_='css-42xwsi').text
+        views = views_block.replace('Просмотров: ', '')
+    except:
+        print('Просмотров нет или не обнаружены')
+        views = '-'
+    return views
+
+
+def safe_to_excel():
+    with xlsxwriter.Workbook('infoOLX/Posts.xlsx') as workbook:
+        worksheet = workbook.add_worksheet()
+
+        for row_num, info in enumerate(data):
+            worksheet.write_row(row_num, 0, info)
+            worksheet.autofit()
+
 
 for page in range(1, 25):
     curr_link = f'/hobbi-otdyh-i-sport/sport-otdyh/astana/?page={page}&search%5Border%5D=created_at%3Adesc'
@@ -39,23 +76,15 @@ for page in range(1, 25):
         storage = requests.get(f'{url}/{post_link}').text
         necessary_bs = BeautifulSoup(storage, 'lxml')
 
-        # search post views
-        browser = webdriver.Chrome()
-        browser.get(f'{url}/{post_link}')
-        element = browser.find_element(By.CLASS_NAME, 'css-cgp8kk')
-        browser.execute_script("arguments[0].scrollIntoView(true);", element)
-        sleep(8)
-
-        source_data = browser.page_source
-        browse = BeautifulSoup(source_data, "lxml")
-        views_block = None
-        views = None
+        browser = init_browser()
         try:
-            views_block = browse.find('span', class_='css-42xwsi').text
-            views = views_block.replace('Просмотров: ', '')
+            views = views_count(browser)
         except:
-            print('Просмотров нет или не обнаружены')
-            views = '-'
+            print("Браузер не отвечает")
+            browser.quit()
+            sleep(5)
+            browser = init_browser()
+            views = views_count(browser)
 
         # search post publication date
         publication_date_block = necessary_bs.find('div', class_='css-1yzzyg0')
@@ -90,10 +119,4 @@ for page in range(1, 25):
 
         count += 1
 
-        with xlsxwriter.Workbook('infoOLX/Posts.xlsx') as workbook:
-            worksheet = workbook.add_worksheet()
-
-            for row_num, info in enumerate(data):
-                worksheet.write_row(row_num, 0, info)
-                worksheet.autofit()
-
+safe_to_excel()
