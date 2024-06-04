@@ -19,6 +19,15 @@ data = [['№', 'Наименование', 'Кол-во просмотров', 
 count = 1
 curr_link = None
 
+
+def SaveToXlsx():
+    with xlsxwriter.Workbook('infoOLX/Posts.xlsx') as workbook:
+        worksheet = workbook.add_worksheet()
+        for row_num, info in enumerate(data):
+            worksheet.write_row(row_num, 0, info)
+            worksheet.autofit()
+
+
 for page in range(1, 25):
     curr_link = f'/hobbi-otdyh-i-sport/sport-otdyh/astana/?page={page}&search%5Border%5D=created_at%3Adesc'
 
@@ -42,24 +51,30 @@ for page in range(1, 25):
         options = webdriver.FirefoxOptions()
         options.add_argument('--headless')
         browser = webdriver.Firefox(options=options)
-        sleep(2)
+        sleep(1)
 
         browser.get(f'{url}/{post_link}')
-        element = browser.find_element(By.CLASS_NAME, 'css-cgp8kk')
-        browser.execute_script("arguments[0].scrollIntoView(true);", element)
-        sleep(8)
+        print(f"{count}|{output_post_link}")
+        views = ''
 
-        # check views
-        source_data = browser.page_source
-        browse = BeautifulSoup(source_data, "lxml")
-        try:
-            views_block = browse.find('span', class_='css-42xwsi').text
-            views = views_block.replace('Просмотров: ', '')
-        except:
-            print('Просмотров нет или не обнаружены')
-            views = '-'
+        if browser.find_element(By.CLASS_NAME, 'css-cgp8kk') is not None:
+            element = browser.find_element(By.CLASS_NAME, 'css-cgp8kk')
+            browser.execute_script("arguments[0].scrollIntoView(true);", element)
+            sleep(3)
+            # check views
+            source_data = browser.page_source
+            browse = BeautifulSoup(source_data, "lxml")
+            try:
+                views_block = browse.find('span', class_='css-42xwsi').text
+                views = views_block.replace('Просмотров: ', '')
+            except:
+                print('Просмотров нет или не обнаружены')
+                views = '-'
 
-        browser.quit()
+            browser.delete_all_cookies()
+            browser.quit()
+        else:
+            print('Объявление больше не доступно')
 
         # search post publication date
         publication_date_block = necessary_bs.find('div', class_='css-1yzzyg0')
@@ -92,11 +107,5 @@ for page in range(1, 25):
         print(f"{count}|{name_block}|{views}|{publication_date}|{output_post_link}")
         data.append([count, name_block, views, publication_date, output_post_link])
 
-        with xlsxwriter.Workbook('infoOLX/Posts.xlsx') as workbook:
-            worksheet = workbook.add_worksheet()
-
-            for row_num, info in enumerate(data):
-                worksheet.write_row(row_num, 0, info)
-                worksheet.autofit()
-
+        SaveToXlsx()
         count += 1
