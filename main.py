@@ -41,7 +41,7 @@ for page in range(1, 25):
     for post in post_class:
         # post links & names
         post_link = post.find_next('a').get('href')
-        name_block = post.find('h6', class_='css-16v5mdi er34gjf0').text
+        name_block = post.find('h6', class_='css-1wxaaza').text
         output_post_link = url + post_link
 
         # open post
